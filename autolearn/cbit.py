@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import random
 import subprocess
 import time
@@ -151,11 +152,14 @@ class CbitPlatform(BasePlatform):
             "level": 5, "pagetitle": "lessonLibrary",
         }
         resp = await self.http.post(url=url, data=data)
+        raw = resp.text
+        _log(f"[{self.phone}] selectLessonApp 原始响应片段: {raw[:500]}")
         result: dict = resp.json()
         lesson_list: list = result.get("lessonList", [])
         _log(f"[{self.phone}] 获取到 {len(lesson_list)} 门课程 (tcid={self.lesson_library_id})")
         if not lesson_list and self.lesson_library_id:
             _log(f"[{self.phone}] tcid 可能不正确，没有获取到课程: {self.lesson_library_id}")
+            _log(f"[{self.phone}] 完整响应: {json.dumps(result, ensure_ascii=False)}")
         return [str(lesson["id"]) for lesson in lesson_list]
 
     async def _get_lesson_items(self, lesson_id: str) -> List[Dict[str, Any]]:
