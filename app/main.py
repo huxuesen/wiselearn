@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from app.database import init_db, create_task, get_task, get_all_tasks, update_task
@@ -23,8 +22,18 @@ app = FastAPI(title="WiseLearn 学习平台")
 # 默认 TCID（从环境变量读取，Docker 部署时设置）
 DEFAULT_TCID = os.environ.get("TCID", "")
 
-# Serve templates
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+# 手动渲染模板，避免 Starlette Jinja2Templates 兼容性问题
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+
+def render_template(name: str, **context) -> str:
+    """渲染 Jinja2 模板"""
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        autoescape=select_autoescape(["html", "xml"]),
+    )
+    template = env.get_template(name)
+    return template.render(**context)
 
 # 存储运行中的后台任务
 _running_tasks: dict[int, asyncio.Task] = {}
@@ -38,7 +47,8 @@ async def startup():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     tasks = get_all_tasks(20)
-    return templates.TemplateResponse("index.html", {"request": request, "tasks": tasks, "default_tcid": DEFAULT_TCID})
+    html = render_template("index.html", request=request, tasks=tasks, default_tcid=DEFAULT_TCID)
+    return HTMLResponse(html)
 
 
 @app.post("/api/tasks")
