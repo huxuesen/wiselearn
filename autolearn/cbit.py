@@ -92,8 +92,8 @@ class CbitPlatform(BasePlatform):
                     async with aio_session.get(captcha_url) as resp:
                         body = await resp.read()
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                    _log(f"[{self.phone}] 获取验证码失败: {e}")
-                    await self._report(f"获取验证码失败，重试...", 2)
+                    _log(f"[{self.phone}] 获取验证码失败: {type(e).__name__}: {e}")
+                    await self._report(f"验证码请求失败 ({type(e).__name__})", 2)
                     await asyncio.sleep(2)
                     continue
 
