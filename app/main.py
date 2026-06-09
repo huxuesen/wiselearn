@@ -2,17 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import sys
 from pathlib import Path
-
-# 配置日志（打印到 Docker 控制台）
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
