@@ -130,9 +130,15 @@ async def run_worker(task_id: int, cancel_event: asyncio.Event):
             "tcid": task_info["tcid"],
         }, progress_callback)
 
-        # 如果任务还在运行（没被取消），标记完成
+        # 正常完成
         if not cancel_event.is_set():
-            update_task(task_id, status="completed", progress=100, message="全部课程已完成！")
+            # 如果已经设置了完成消息，保留它（比如"未发现课程"）
+            current = get_task(task_id)
+            if current and current.get("progress", 0) >= 100 and current.get("message"):
+                # 已有完整消息，不再覆盖
+                update_task(task_id, status="completed", progress=100)
+            else:
+                update_task(task_id, status="completed", progress=100, message="全部课程已完成！")
     except asyncio.CancelledError:
         update_task(task_id, status="cancelled", message="任务已取消")
     except Exception as e:
