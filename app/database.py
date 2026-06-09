@@ -38,6 +38,8 @@ def init_db():
             password TEXT NOT NULL
         );
     """)
+    # 启动时清除旧任务记录，防止他人看到历史
+    conn.execute("DELETE FROM tasks")
     # 兼容旧数据库：添加 client_id 字段（如果不存在）
     try:
         conn.execute("ALTER TABLE tasks ADD COLUMN client_id TEXT DEFAULT ''")
