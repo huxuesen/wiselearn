@@ -84,14 +84,24 @@ class CbitPlatform(BasePlatform):
 
         for attempt in range(self.retry):
             _log(f"[{self.phone}] 登录尝试 {attempt+1}/{self.retry}")
-            async with aiohttp.ClientSession() as aio_session:
-                async with aio_session.get(captcha_url) as resp:
-                    body = await resp.read()
-                    session_id = ""
-                    for c in resp.headers.getall("set-cookie", []):
-                        if c.startswith("sessionIdCookie="):
-                            session_id = c.split("=", 1)[1].split(";")[0]
-                            break
+            await self._report(f"登录尝试 {attempt+1}/{self.retry} ...", 2)
+            # 给验证码请求加超时，避免卡死
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as aio_session:
+                try:
+                    async with aio_session.get(captcha_url) as resp:
+                        body = await resp.read()
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    _log(f"[{self.phone}] 获取验证码失败: {e}")
+                    await self._report(f"获取验证码失败，重试...", 2)
+                    await asyncio.sleep(2)
+                    continue
+
+                session_id = ""
+                for c in resp.headers.getall("set-cookie", []):
+                    if c.startswith("sessionIdCookie="):
+                        session_id = c.split("=", 1)[1].split(";")[0]
+                        break
 
                 if not session_id:
                     _log(f"[{self.phone}] 获取 session_id 失败，重试")
