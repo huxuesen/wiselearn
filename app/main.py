@@ -60,9 +60,7 @@ async def submit_task(
     tcid: str = Form(default=""),
     client_id: str = Form(default=""),
 ):
-    # 如果前端没填 tcid，使用环境变量中的默认值
-    if not tcid:
-        tcid = DEFAULT_TCID
+    # tcid 已由前端预填环境变量值，用户删掉即为留空（自动发现课程）
     task_id = create_task(name, phone, passwd, tcid, client_id)
 
     # 创建取消事件
