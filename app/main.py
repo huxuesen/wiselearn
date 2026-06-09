@@ -46,8 +46,7 @@ async def startup():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, client_id: str = ""):
-    # 没有 client_id 时不显示任何历史任务
-    tasks = get_tasks(client_id) if client_id else []
+    tasks = get_tasks(client_id or "")
     html = render_template("index.html", request=request, tasks=tasks, default_tcid=DEFAULT_TCID)
     return HTMLResponse(html)
 

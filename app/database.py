@@ -77,11 +77,9 @@ def get_tasks(client_id: str = "", limit: int = 50) -> list[dict]:
             (client_id, limit),
         ).fetchall()
     else:
-        rows = conn.execute(
-            "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
-        ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+        # 没有 client_id 时不返回任何历史记录
+        conn.close()
+        return []
 
 
 def update_task(task_id: int, status: str = None, progress: int = None, message: str = None):
