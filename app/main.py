@@ -53,6 +53,7 @@ async def index(request: Request, client_id: str = ""):
 
 @app.post("/api/tasks")
 async def submit_task(
+    request: Request,
     name: str = Form(...),
     phone: str = Form(...),
     passwd: str = Form(...),
@@ -71,6 +72,11 @@ async def submit_task(
     # 启动后台任务
     task = asyncio.create_task(run_worker(task_id, cancel_event))
     _running_tasks[task_id] = task
+
+    # 如果是浏览器直接提交（非 JS），重定向回首页
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept or "application/json" not in accept:
+        return HTMLResponse('<script>location.href="/?submitted=1"</script>')
 
     return JSONResponse({"id": task_id, "status": "queued"})
 
