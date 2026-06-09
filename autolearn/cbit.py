@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import random
 import subprocess
 import time
@@ -12,6 +13,8 @@ from typing import Any, Dict, List, Optional
 from autolearn.crypto import AESCipher
 from autolearn.exceptions import CaptchaError, LoginFailed
 from autolearn.base import BasePlatform
+
+logger = logging.getLogger("wiselearn.cbit")
 
 OCR_CWD = "/app/ocr"
 OCR_SCRIPT = "/app/ocr/scripts/ocr.js"
@@ -23,9 +26,11 @@ class CbitPlatform(BasePlatform):
         self.phone: str = user_info["phone"]
         self.password: str = user_info.get("passwd", "123456")
         self.lesson_library_id: str = user_info.get("tcid", "")
+        logger.info(f"初始化刷课任务: phone={self.phone}, tcid={self.lesson_library_id}")
 
     async def _report(self, msg: str, progress: int = 0):
         """报告进度"""
+        logger.info(f"[{self.phone}] {msg} ({progress}%)")
         if self.progress_callback:
             await self.progress_callback(msg, progress)
 
@@ -47,7 +52,9 @@ class CbitPlatform(BasePlatform):
 
         captcha_text = await loop.run_in_executor(None, _run)
         if not captcha_text:
+            logger.warning(f"[{self.phone}] OCR 识别失败")
             raise CaptchaError("OCR failed to recognize captcha")
+        logger.info(f"[{self.phone}] OCR 识别成功: {captcha_text}")
         return captcha_text
 
     async def _login(self) -> None:
@@ -75,6 +82,7 @@ class CbitPlatform(BasePlatform):
         }
 
         for attempt in range(self.retry):
+            logger.info(f"[{self.phone}] 登录尝试 {attempt+1}/{self.retry}")
             async with aiohttp.ClientSession() as aio_session:
                 async with aio_session.get(captcha_url) as resp:
                     body = await resp.read()
@@ -85,6 +93,7 @@ class CbitPlatform(BasePlatform):
                             break
 
                 if not session_id:
+                    logger.warning(f"[{self.phone}] 获取 session_id 失败，重试")
                     await asyncio.sleep(1)
                     continue
 
@@ -108,8 +117,10 @@ class CbitPlatform(BasePlatform):
 
                 if result.get("success"):
                     login_response = result
+                    logger.info(f"[{self.phone}] 登录成功")
                     break
                 else:
+                    logger.warning(f"[{self.phone}] 登录失败: {result}")
                     await asyncio.sleep(1)
 
         if login_response is None:
@@ -129,6 +140,9 @@ class CbitPlatform(BasePlatform):
         resp = await self.http.post(url=url, data=data)
         result: dict = resp.json()
         lesson_list: list = result.get("lessonList", [])
+        logger.info(f"[{self.phone}] 获取到 {len(lesson_list)} 门课程 (tcid={self.lesson_library_id})")
+        if not lesson_list and self.lesson_library_id:
+            logger.warning(f"[{self.phone}] tcid 可能不正确，没有获取到课程: {self.lesson_library_id}")
         return [str(lesson["id"]) for lesson in lesson_list]
 
     async def _get_lesson_items(self, lesson_id: str) -> List[Dict[str, Any]]:
@@ -152,11 +166,14 @@ class CbitPlatform(BasePlatform):
         if self.mode == "fast":
             data = {**data_template, "suspendTime": total_time, "studytime": total_time}
             url = base_url + urllib.parse.urlencode(data)
-            for _ in range(self.retry):
+            for attempt in range(self.retry):
                 resp = await self.http.post(url=url, data=data)
                 result: dict = resp.json()
                 if result.get("success"):
+                    logger.info(f"[{self.phone}] 课时上报成功: {lesson_name} ({total_time}s) tcid={tcid}")
                     return
+                else:
+                    logger.warning(f"[{self.phone}] 课时上报失败 (第{attempt+1}次): {lesson_name} - {result}")
         elif self.mode == "normal":
             study_time = total_time * study_plan / 100
             while total_time > study_time:
@@ -184,9 +201,13 @@ class CbitPlatform(BasePlatform):
         for lesson_id in lesson_ids:
             lesson_items = await self._get_lesson_items(lesson_id)
             if not lesson_items:
+                logger.info(f"[{self.phone}] 课程 {lesson_id} 无学习项，跳过")
                 continue
 
+            logger.info(f"[{self.phone}] 课程 {lesson_id}: {len(lesson_items)} 个学习项")
+
             for item in lesson_items:
+                logger.info(f"[{self.phone}] 上报课时: {item['name']} ({item['time']}s)")
                 await self._post_schedule(
                     lesson_id=lesson_id, item_id=item["id"],
                     total_time=item["time"], lesson_name=item["name"],

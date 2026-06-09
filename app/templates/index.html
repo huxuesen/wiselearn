@@ -125,6 +125,7 @@
         <div class="card">
             <h2>添加刷课任务</h2>
             <form id="taskForm">
+                <input type="hidden" name="client_id" id="clientIdInput">
                 <div class="form-group">
                     <label>姓名</label>
                     <input type="text" name="name" placeholder="如: hxs" required>
@@ -145,8 +146,8 @@
             </form>
         </div>
 
-        <div class="card">
-            <h2>任务列表</h2>
+        <div class="card" id="taskListCard">
+            <h2>我的任务</h2>
             <div id="taskList">
                 {% if tasks %}
                 <table class="tasks-table">
@@ -192,6 +193,14 @@
     </div>
 
     <script>
+        // ===== 生成/获取 client_id =====
+        let clientId = localStorage.getItem('wiselearn_client_id');
+        if (!clientId) {
+            clientId = crypto.randomUUID();
+            localStorage.setItem('wiselearn_client_id', clientId);
+        }
+        document.getElementById('clientIdInput').value = clientId;
+
         const form = document.getElementById('taskForm');
         const submitBtn = document.getElementById('submitBtn');
 
@@ -205,7 +214,8 @@
                 const res = await fetch('/api/tasks', { method: 'POST', body: data });
                 const result = await res.json();
                 showToast('任务已提交！', 'success');
-                setTimeout(() => location.reload(), 500);
+                // 立即刷新任务列表，显示新任务
+                refreshTasks();
             } catch (err) {
                 showToast('提交失败: ' + err.message, 'error');
             } finally {
@@ -218,8 +228,8 @@
             if (!confirm('确定取消这个任务吗？')) return;
             try {
                 await fetch('/api/tasks/' + id + '/cancel', { method: 'POST' });
-                showToast('任务已取消', 'success');
-                location.reload();
+                showToast('正在取消...', 'success');
+                refreshTasks();
             } catch (err) {
                 showToast('取消失败', 'error');
             }
@@ -233,28 +243,35 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // 自动刷新任务状态
-        setInterval(async () => {
+        // 刷新当前用户的任务列表
+        async function refreshTasks() {
             try {
-                const res = await fetch('/api/tasks');
+                const res = await fetch('/api/tasks?client_id=' + encodeURIComponent(clientId));
                 const tasks = await res.json();
                 const list = document.getElementById('taskList');
-                let html = '<table class="tasks-table"><thead><tr><th>姓名</th><th>状态</th><th>进度</th><th>消息</th><th>操作</th></tr></thead><tbody>';
-                for (const t of tasks) {
-                    const canCancel = t.status === 'running' ? `<button class="btn btn-danger" onclick="cancelTask(${t.id})">取消</button>` : '';
-                    html += `<tr>
-                        <td>${t.name}</td>
-                        <td><span class="status-badge status-${t.status}">${t.status}</span></td>
-                        <td><div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div><span style="font-size:12px;color:#888;">${t.progress}%</span></td>
-                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.message || ''}</td>
-                        <td>${canCancel}</td>
-                    </tr>`;
+                let html = '';
+                if (tasks.length > 0) {
+                    html = '<table class="tasks-table"><thead><tr><th>姓名</th><th>状态</th><th>进度</th><th>消息</th><th>操作</th></tr></thead><tbody>';
+                    for (const t of tasks) {
+                        const canCancel = t.status === 'running' ? `<button class="btn btn-danger" onclick="cancelTask(${t.id})">取消</button>` : '';
+                        html += `<tr>
+                            <td>${t.name}</td>
+                            <td><span class="status-badge status-${t.status}">${t.status}</span></td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div><span style="font-size:12px;color:#888;">${t.progress}%</span></td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.message || ''}</td>
+                            <td>${canCancel}</td>
+                        </tr>`;
+                    }
+                    html += '</tbody></table>';
+                } else {
+                    html = '<div class="empty">还没有任务，添加一个吧 🚀</div>';
                 }
-                html += '</tbody></table>';
-                if (tasks.length === 0) html = '<div class="empty">还没有任务，添加一个吧 🚀</div>';
                 list.innerHTML = html;
             } catch(e) {}
-        }, 3000);
+        }
+
+        // 自动刷新任务状态（只刷新当前用户的任务）
+        setInterval(refreshTasks, 3000);
     </script>
 </body>
 </html>

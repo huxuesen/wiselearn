@@ -24,6 +24,7 @@ def init_db():
             phone TEXT NOT NULL,
             passwd TEXT NOT NULL,
             tcid TEXT DEFAULT '',
+            client_id TEXT DEFAULT '',
             status TEXT DEFAULT 'queued',
             progress INTEGER DEFAULT 0,
             message TEXT DEFAULT '',
@@ -37,15 +38,20 @@ def init_db():
             password TEXT NOT NULL
         );
     """)
+    # 兼容旧数据库：添加 client_id 字段（如果不存在）
+    try:
+        conn.execute("ALTER TABLE tasks ADD COLUMN client_id TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass  # 字段已存在
     conn.commit()
     conn.close()
 
 
-def create_task(name: str, phone: str, passwd: str, tcid: str = "") -> int:
+def create_task(name: str, phone: str, passwd: str, tcid: str = "", client_id: str = "") -> int:
     conn = get_db()
     conn.execute(
-        "INSERT INTO tasks (name, phone, passwd, tcid) VALUES (?, ?, ?, ?)",
-        (name, phone, passwd, tcid),
+        "INSERT INTO tasks (name, phone, passwd, tcid, client_id) VALUES (?, ?, ?, ?, ?)",
+        (name, phone, passwd, tcid, client_id),
     )
     conn.commit()
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -60,11 +66,18 @@ def get_task(task_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_all_tasks(limit: int = 50) -> list[dict]:
+def get_tasks(client_id: str = "", limit: int = 50) -> list[dict]:
+    """获取任务列表，按 client_id 过滤"""
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
-    ).fetchall()
+    if client_id:
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE client_id = ? ORDER BY created_at DESC LIMIT ?",
+            (client_id, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
