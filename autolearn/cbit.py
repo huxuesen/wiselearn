@@ -10,7 +10,7 @@ import urllib.parse
 from typing import Any, Dict, List, Optional
 
 from autolearn.crypto import AESCipher
-from autolearn.base import CaptchaError, LoginFailed
+from autolearn.exceptions import CaptchaError, LoginFailed
 from autolearn.base import BasePlatform
 
 OCR_CWD = "/app/ocr"

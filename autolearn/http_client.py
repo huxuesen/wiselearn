@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from autolearn.base import Non200Error, RequestError, RetryExhaustedError
+from autolearn.exceptions import Non200Error, RequestError, RetryExhaustedError
 
 DEFAULT_RETRIES = 5
 DEFAULT_TIMEOUT = 15

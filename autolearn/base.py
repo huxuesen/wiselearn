@@ -5,33 +5,12 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from autolearn.exceptions import LoginFailed, CaptchaError, RequestError, Non200Error, RetryExhaustedError, CourseNotFound
 from autolearn.settings import Config
 from autolearn.http_client import HttpClient
 
 
-class AutoLearnError(Exception):
-    pass
-
-class LoginFailed(AutoLearnError):
-    pass
-
-class CourseNotFound(AutoLearnError):
-    pass
-
-class CaptchaError(AutoLearnError):
-    pass
-
-class RequestError(AutoLearnError):
-    def __init__(self, message: str, url: str = "", status_code: int = 0):
-        self.url = url
-        self.status_code = status_code
-        super().__init__(message)
-
-class Non200Error(RequestError):
-    pass
-
-class RetryExhaustedError(RequestError):
-    pass
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class BasePlatform(ABC):
