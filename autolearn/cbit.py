@@ -152,7 +152,7 @@ class CbitPlatform(BasePlatform):
             "level": 5, "pagetitle": "lessonLibrary",
         }
         resp = await self.http.post(url=url, data=data)
-        raw = resp.text
+        raw = resp.text()
         _log(f"[{self.phone}] selectLessonApp 原始响应片段: {raw[:500]}")
         result: dict = resp.json()
         lesson_list: list = result.get("lessonList", [])
