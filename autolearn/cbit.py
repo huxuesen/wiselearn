@@ -131,11 +131,13 @@ class CbitPlatform(BasePlatform):
                     _log(f"[{self.phone}] 登录成功")
                     break
                 else:
+                    err_msg = result.get("msg", "登录失败")
                     _log(f"[{self.phone}] 登录失败: {result}")
-                    await asyncio.sleep(1)
+                    await self._report(f"登录失败: {err_msg}", 2)
+                    await asyncio.sleep(2)
 
         if login_response is None:
-            raise LoginFailed(f"{self.name} login failed after {self.retry} attempts")
+            raise LoginFailed(f"{self.phone} 登录失败: 用户名或密码错误（已重试{self.retry}次）")
 
         token = login_response["token"]
         self.http.headers["token"] = token
