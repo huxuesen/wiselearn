@@ -1,0 +1,89 @@
+"""数据库模块"""
+import sqlite3
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).resolve().parent / "tasks.db"))
+
+
+def get_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def init_db():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            passwd TEXT NOT NULL,
+            tcid TEXT DEFAULT '',
+            status TEXT DEFAULT 'queued',
+            progress INTEGER DEFAULT 0,
+            message TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now', 'localtime')),
+            updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+        );
+        
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+def create_task(name: str, phone: str, passwd: str, tcid: str = "") -> int:
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO tasks (name, phone, passwd, tcid) VALUES (?, ?, ?, ?)",
+        (name, phone, passwd, tcid),
+    )
+    conn.commit()
+    task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return task_id
+
+
+def get_task(task_id: int) -> Optional[dict]:
+    conn = get_db()
+    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_tasks(limit: int = 50) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_task(task_id: int, status: str = None, progress: int = None, message: str = None):
+    conn = get_db()
+    fields = []
+    values = []
+    if status is not None:
+        fields.append("status = ?")
+        values.append(status)
+    if progress is not None:
+        fields.append("progress = ?")
+        values.append(progress)
+    if message is not None:
+        fields.append("message = ?")
+        values.append(message)
+    fields.append("updated_at = datetime('now', 'localtime')")
+    values.append(task_id)
+    conn.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()

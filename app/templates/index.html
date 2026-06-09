@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiseLearn 学习平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .header h1 { font-size: 28px; color: #1a1a2e; }
+        .header p { color: #666; margin-top: 5px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a1a2e; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 14px; color: #555; margin-bottom: 4px; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+        .btn-danger { background: #ef4444; color: white; font-size: 13px; padding: 6px 12px; width: auto; }
+        .btn-danger:hover { background: #dc2626; }
+
+        .tasks-table { width: 100%; border-collapse: collapse; }
+        .tasks-table th, .tasks-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .tasks-table th { color: #888; font-weight: 500; }
+        .tasks-table td { vertical-align: middle; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-queued { background: #fef3c7; color: #92400e; }
+        .status-running { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+        .status-cancelled { background: #f3f4f6; color: #6b7280; }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .empty { text-align: center; color: #999; padding: 30px 0; font-size: 14px; }
+
+        .footer { text-align: center; padding: 20px; color: #999; font-size: 13px; }
+
+        .toast {
+            position: fixed; top: 20px; right: 20px;
+            padding: 12px 20px; border-radius: 8px;
+            color: white; font-size: 14px;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 WiseLearn 智慧学习平台</h1>
+            <p>智慧学习平台</p>
+        </div>
+
+        <div class="card">
+            <h2>添加刷课任务</h2>
+            <form id="taskForm">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" name="name" placeholder="如: hxs" required>
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="text" name="phone" placeholder="手机号" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" name="passwd" placeholder="密码" required>
+                </div>
+                <div class="form-group">
+                    <label>课程库 ID（环境已配置则自动填充，留空刷全部课程）</label>
+                    <input type="text" name="tcid" placeholder="留空即可" value="{{ default_tcid }}">
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">开始刷课</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>任务列表</h2>
+            <div id="taskList">
+                {% if tasks %}
+                <table class="tasks-table">
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>状态</th>
+                            <th>进度</th>
+                            <th>消息</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr id="task-{{ task.id }}">
+                            <td>{{ task.name }}</td>
+                            <td><span class="status-badge status-{{ task.status }}">{{ task.status }}</span></td>
+                            <td>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ task.progress }}%"></div>
+                                </div>
+                                <span style="font-size:12px;color:#888;">{{ task.progress }}%</span>
+                            </td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ task.message }}</td>
+                            <td>
+                                {% if task.status == 'running' %}
+                                <button class="btn btn-danger" onclick="cancelTask({{ task.id }})">取消</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">还没有任务，添加一个吧 🚀</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="footer">
+            WiseLearn · 仅供内部使用
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('taskForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
+
+            const data = new FormData(form);
+            try {
+                const res = await fetch('/api/tasks', { method: 'POST', body: data });
+                const result = await res.json();
+                showToast('任务已提交！', 'success');
+                setTimeout(() => location.reload(), 500);
+            } catch (err) {
+                showToast('提交失败: ' + err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '开始刷课';
+            }
+        });
+
+        async function cancelTask(id) {
+            if (!confirm('确定取消这个任务吗？')) return;
+            try {
+                await fetch('/api/tasks/' + id + '/cancel', { method: 'POST' });
+                showToast('任务已取消', 'success');
+                location.reload();
+            } catch (err) {
+                showToast('取消失败', 'error');
+            }
+        }
+
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // 自动刷新任务状态
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/tasks');
+                const tasks = await res.json();
+                const list = document.getElementById('taskList');
+                let html = '<table class="tasks-table"><thead><tr><th>姓名</th><th>状态</th><th>进度</th><th>消息</th><th>操作</th></tr></thead><tbody>';
+                for (const t of tasks) {
+                    const canCancel = t.status === 'running' ? `<button class="btn btn-danger" onclick="cancelTask(${t.id})">取消</button>` : '';
+                    html += `<tr>
+                        <td>${t.name}</td>
+                        <td><span class="status-badge status-${t.status}">${t.status}</span></td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div><span style="font-size:12px;color:#888;">${t.progress}%</span></td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.message || ''}</td>
+                        <td>${canCancel}</td>
+                    </tr>`;
+                }
+                html += '</tbody></table>';
+                if (tasks.length === 0) html = '<div class="empty">还没有任务，添加一个吧 🚀</div>';
+                list.innerHTML = html;
+            } catch(e) {}
+        }, 3000);
+    </script>
+</body>
+</html>

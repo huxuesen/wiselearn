@@ -1,0 +1,13 @@
+# WiseLearn
+speed: 1.5
+mode: fast
+retry: 5
+
+aes:
+  key: "dacf107e4bdbbef0"
+  iv: "bcancid682e09aec"
+
+logging:
+  logging_level: INFO
+  logging_path: ""
+  logging_mode: a

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  wiselearn:
+    build: .
+    container_name: wiselearn
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # 设置默认 TCID，部署时填写实际的课程库 ID
+      # 用户在前端刷课时可不再填写此字段
+      # TCID: "9c3e6c321ad44664878e0077b9851764"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
