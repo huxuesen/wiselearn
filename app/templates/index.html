@@ -193,21 +193,29 @@
     </div>
 
     <script>
-        // ===== 生成/获取 client_id =====
-        let clientId = localStorage.getItem('wiselearn_client_id');
-        if (!clientId) {
-            clientId = crypto.randomUUID();
-            localStorage.setItem('wiselearn_client_id', clientId);
+        // 获取当前用户的 client_id
+        function getClientId() {
+            let id = localStorage.getItem('wiselearn_client_id');
+            if (!id) {
+                id = crypto.randomUUID();
+                localStorage.setItem('wiselearn_client_id', id);
+            }
+            return id;
         }
-        document.getElementById('clientIdInput').value = clientId;
 
         const form = document.getElementById('taskForm');
         const submitBtn = document.getElementById('submitBtn');
+
+        // 确保页面加载时设置 client_id
+        document.getElementById('clientIdInput').value = getClientId();
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
             submitBtn.textContent = '提交中...';
+
+            // 提交前再次确保 client_id 有效
+            document.getElementById('clientIdInput').value = getClientId();
 
             const data = new FormData(form);
             try {
@@ -246,7 +254,8 @@
         // 刷新当前用户的任务列表
         async function refreshTasks() {
             try {
-                const res = await fetch('/api/tasks?client_id=' + encodeURIComponent(clientId));
+                const cid = getClientId();
+                const res = await fetch('/api/tasks?client_id=' + encodeURIComponent(cid));
                 const tasks = await res.json();
                 const list = document.getElementById('taskList');
                 let html = '';
